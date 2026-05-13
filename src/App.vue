@@ -1,7 +1,15 @@
 <script setup>
-import HelloWorld from './components/HelloWorld.vue'
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
+import AppLayout from './layouts/AppLayout.vue'
+
+const route = useRoute()
+const useLayout = computed(() => route.meta.requiresAuth)
 </script>
 
 <template>
-  <HelloWorld />
+  <AppLayout v-if="useLayout">
+    <router-view />
+  </AppLayout>
+  <router-view v-else />
 </template>
