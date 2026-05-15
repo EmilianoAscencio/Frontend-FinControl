@@ -18,8 +18,8 @@ const handleRegister = async () => {
   if (form.password !== form.confirm) {
     errorMsg.value = 'Las contraseñas no coinciden.'; return
   }
-  if (form.password.length < 6) {
-    errorMsg.value = 'La contraseña debe tener al menos 6 caracteres.'; return
+  if (form.password.length < 8) {
+    errorMsg.value = 'La contraseña debe tener al menos 8 caracteres.'; return
   }
   loading.value = true
   try {
@@ -59,7 +59,7 @@ const handleRegister = async () => {
         </div>
         <div class="field">
           <label>Contraseña</label>
-          <input v-model="form.password" type="password" placeholder="Mínimo 6 caracteres"
+          <input v-model="form.password" type="password" placeholder="Mínimo 8 caracteres"
             @keyup.enter="handleRegister" :disabled="loading" />
         </div>
         <div class="field">
