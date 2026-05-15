@@ -69,59 +69,94 @@ const handleLogin = async () => {
   background: var(--bg);
   padding: 24px;
 }
+
 .auth-card {
   width: 100%;
-  max-width: 400px;
-  background: var(--code-bg);
+  max-width: 420px;
+  background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 16px;
   padding: 40px 36px;
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  gap: 24px;
+  box-shadow: var(--shadow-md);
 }
-.auth-header { text-align: center; display: flex; flex-direction: column; gap: 8px; }
-.logo        { font-size: 22px; font-weight: 700; color: var(--text-h); }
-.subtitle    { font-size: 14px; color: var(--text); margin: 0; }
-.auth-form   { display: flex; flex-direction: column; gap: 16px; }
+
+.auth-header {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.logo     { font-size: 22px; font-weight: 700; color: var(--text-h); }
+.subtitle { font-size: 14px; color: var(--text); margin: 0; }
+
+.auth-form { display: flex; flex-direction: column; gap: 14px; }
+
 .field       { display: flex; flex-direction: column; gap: 6px; }
-.field label { font-size: 13px; font-weight: 500; color: var(--text); }
+.field label { font-size: 13px; font-weight: 500; color: var(--text-h); }
+
 .field input {
   padding: 10px 14px;
   border-radius: 8px;
-  border: 1px solid var(--border);
+  border: 1.5px solid var(--border);
   background: var(--bg);
   color: var(--text-h);
   font-size: 14px;
   outline: none;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  width: 100%;
 }
-.field input:focus    { border-color: var(--accent); }
+
+.field input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-bg);
+}
+
 .field input:disabled { opacity: 0.6; }
+
 .error-msg {
   font-size: 13px;
-  color: #f87171;
+  color: #dc2626;
   margin: 0;
   padding: 10px 14px;
-  background: rgba(248,113,113,0.08);
+  background: rgba(220, 38, 38, 0.06);
   border-radius: 8px;
-  border: 1px solid rgba(248,113,113,0.2);
+  border: 1px solid rgba(220, 38, 38, 0.2);
 }
+
 .btn-primary {
-  padding: 11px;
+  width: 100%;
+  padding: 12px;
   border-radius: 8px;
   border: none;
   background: var(--accent);
-  color: #fff;
+  color: #ffffff;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: opacity 0.2s;
+  transition: background 0.2s, transform 0.1s;
   margin-top: 4px;
 }
-.btn-primary:hover    { opacity: 0.88; }
-.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-.switch-link { text-align: center; font-size: 13px; color: var(--text); margin: 0; }
-.switch-link a { color: var(--accent); text-decoration: none; font-weight: 500; }
+
+.btn-primary:hover    { background: var(--accent-soft); }
+.btn-primary:active   { transform: scale(0.98); }
+.btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.switch-link {
+  text-align: center;
+  font-size: 13px;
+  color: var(--text);
+  margin: 0;
+}
+
+.switch-link a {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
 .switch-link a:hover { text-decoration: underline; }
 </style>
