@@ -32,7 +32,7 @@ const handleLogout = async () => {
 <template>
   <div class="app-shell">
 
-    <!-- ── Sidebar ─────────────────────────────────────────── -->
+    <!-- Sidebar -->
     <aside class="sidebar" :class="{ collapsed: !sidebarOpen }">
       <div class="sidebar-header">
         <span class="logo" v-if="sidebarOpen">💜 FinControl</span>
@@ -56,7 +56,7 @@ const handleLogout = async () => {
       </nav>
     </aside>
 
-    <!-- ── Main ───────────────────────────────────────────── -->
+    <!-- Main -->
     <div class="main-wrapper">
 
       <!-- Navbar -->
@@ -84,7 +84,7 @@ const handleLogout = async () => {
   background: var(--bg);
 }
 
-/* ── Sidebar ── */
+/* Sidebar */
 .sidebar {
   width: 220px;
   min-height: 100svh;
@@ -147,7 +147,7 @@ const handleLogout = async () => {
 .nav-item.active  { background: var(--accent-bg); color: var(--accent); font-weight: 600; }
 .nav-icon { font-size: 16px; flex-shrink: 0; }
 
-/* ── Main ── */
+/*  Main  */
 .main-wrapper {
   flex: 1;
   display: flex;
