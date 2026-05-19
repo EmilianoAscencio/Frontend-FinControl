@@ -1,3 +1,308 @@
+<script setup>
+import { ref, reactive, computed, onUnmounted, nextTick } from 'vue'
+import { Chart, registerables } from 'chart.js'
+import api from '../services/api'
+
+Chart.register(...registerables)
+
+// Date helpers 
+const today        = new Date()
+const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+const toISO        = (d) => d.toISOString().slice(0, 10)
+
+const filters = reactive({
+  startDate: toISO(firstOfMonth),
+  endDate:   toISO(today),
+})
+
+// State 
+const loading  = ref(false)
+const errorMsg = ref('')
+const report   = ref(null)
+
+const barCanvas      = ref(null)
+const doughnutCanvas = ref(null)
+let barChart      = null
+let doughnutChart = null
+
+const destroyCharts = () => {
+  if (barChart)      { barChart.destroy();      barChart = null }
+  if (doughnutChart) { doughnutChart.destroy(); doughnutChart = null }
+}
+
+const buildCharts = () => {
+  if (!report.value) return
+  destroyCharts()
+
+  const { totalIncome, totalExpenses } = report.value
+  const incomeColor  = '#7c3aed'
+  const expenseColor = '#ef4444'
+
+  barChart = new Chart(barCanvas.value, {
+    type: 'bar',
+    data: {
+      labels: ['Ingresos', 'Gastos'],
+      datasets: [{
+        label: 'Monto (MXN)',
+        data: [totalIncome, totalExpenses],
+        backgroundColor: [incomeColor, expenseColor],
+        borderRadius: 8,
+        borderSkipped: false,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: { callback: (v) => '$' + v.toLocaleString('es-MX') },
+        },
+      },
+    },
+  })
+
+  doughnutChart = new Chart(doughnutCanvas.value, {
+    type: 'doughnut',
+    data: {
+      labels: ['Ingresos', 'Gastos'],
+      datasets: [{
+        data: [totalIncome, totalExpenses],
+        backgroundColor: [incomeColor, expenseColor],
+        borderWidth: 2,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom' },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => ` $${ctx.parsed.toLocaleString('es-MX')}`,
+          },
+        },
+      },
+    },
+  })
+}
+
+// Fetch 
+const fetchReport = async () => {
+  errorMsg.value = ''
+  if (!filters.startDate || !filters.endDate) {
+    errorMsg.value = 'Selecciona un rango de fechas.'
+    return
+  }
+  if (filters.startDate > filters.endDate) {
+    errorMsg.value = 'La fecha inicial no puede ser mayor que la final.'
+    return
+  }
+
+  loading.value = true
+  report.value  = null
+  destroyCharts()
+
+  try {
+    const { data } = await api.get('/api/reports/income-vs-expenses', {
+      params: { startDate: filters.startDate, endDate: filters.endDate },
+    })
+    report.value = data.data
+    await nextTick()
+    buildCharts()
+  } catch (err) {
+    errorMsg.value = err.response?.data?.message || 'Error al cargar el reporte.'
+  } finally {
+    loading.value = false
+  }
+}
+
+const fmt = (n) =>
+  new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n ?? 0)
+
+const hasData = computed(
+  () => report.value && (report.value.totalIncome > 0 || report.value.totalExpenses > 0)
+)
+
+onUnmounted(destroyCharts)
+fetchReport()
+</script>
+
 <template>
-  <div><h2>Reports</h2></div>
+  <div class="reports-page">
+
+    <!-- Header -->
+    <div class="page-header">
+      <div>
+        <h2>Reportes</h2>
+        <p class="page-sub">Compara ingresos y gastos en un período</p>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card filter-card">
+      <div class="filter-row">
+        <div class="field">
+          <label>Fecha inicial</label>
+          <input type="date" v-model="filters.startDate" :max="filters.endDate" />
+        </div>
+        <div class="field">
+          <label>Fecha final</label>
+          <input type="date" v-model="filters.endDate" :min="filters.startDate" />
+        </div>
+        <button class="btn-primary" @click="fetchReport" :disabled="loading">
+          {{ loading ? 'Cargando...' : 'Generar reporte' }}
+        </button>
+      </div>
+      <p v-if="errorMsg" class="error-msg">{{ errorMsg }}</p>
+    </div>
+
+    <!-- Loading -->
+    <div v-if="loading" class="state-box">
+      <span class="spinner"></span>
+      <p>Generando reporte…</p>
+    </div>
+
+    <!-- Results -->
+    <template v-else-if="report">
+
+      <!-- Summary cards -->
+      <div class="summary-grid">
+        <div class="card stat-card income">
+          <p class="stat-label">Total Ingresos</p>
+          <p class="stat-value">{{ fmt(report.totalIncome) }}</p>
+        </div>
+        <div class="card stat-card expenses">
+          <p class="stat-label">Total Gastos</p>
+          <p class="stat-value">{{ fmt(report.totalExpenses) }}</p>
+        </div>
+        <div class="card stat-card" :class="report.balanceDifference >= 0 ? 'income' : 'expenses'">
+          <p class="stat-label">Balance del período</p>
+          <p class="stat-value">{{ fmt(report.balanceDifference) }}</p>
+        </div>
+      </div>
+
+      <!-- Empty state -->
+      <div v-if="!hasData" class="state-box">
+        <p class="empty-icon">📭</p>
+        <p>No hay transacciones en este período.</p>
+      </div>
+
+      <!-- Charts -->
+      <div v-else class="charts-grid">
+        <div class="card chart-card">
+          <h3>Comparativa</h3>
+          <div class="chart-wrap">
+            <canvas ref="barCanvas"></canvas>
+          </div>
+        </div>
+        <div class="card chart-card">
+          <h3>Distribución</h3>
+          <div class="chart-wrap">
+            <canvas ref="doughnutCanvas"></canvas>
+          </div>
+        </div>
+      </div>
+
+    </template>
+
+  </div>
 </template>
+
+<style scoped>
+.reports-page { display: flex; flex-direction: column; gap: 20px; }
+
+.page-header { display: flex; align-items: flex-start; justify-content: space-between; }
+.page-sub    { font-size: 13px; color: var(--text); margin-top: 2px; }
+
+.filter-card { padding: 16px 20px; }
+.filter-row  { display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+
+.field       { display: flex; flex-direction: column; gap: 5px; }
+.field label { font-size: 13px; font-weight: 500; color: var(--text-h); }
+.field input {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border);
+  background: var(--bg);
+  color: var(--text-h);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.field input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-bg); }
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+.stat-card   { text-align: center; }
+.stat-label  { font-size: 13px; color: var(--text); margin-bottom: 6px; }
+.stat-value  { font-size: 22px; font-weight: 700; color: var(--text-h); margin: 0; }
+.stat-card.income   .stat-value { color: #7c3aed; }
+.stat-card.expenses .stat-value { color: #dc2626; }
+
+.charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.chart-card h3  { margin-bottom: 16px; }
+.chart-wrap { height: 260px; position: relative; }
+
+.state-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 48px 24px;
+  color: var(--text);
+  font-size: 14px;
+}
+.empty-icon { font-size: 40px; margin: 0; }
+
+.spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.btn-primary {
+  padding: 9px 20px;
+  border-radius: 8px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  white-space: nowrap;
+  align-self: flex-end;
+}
+.btn-primary:hover    { background: var(--accent-soft); }
+.btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.error-msg {
+  font-size: 13px;
+  color: #dc2626;
+  margin: 12px 0 0;
+  padding: 10px 14px;
+  background: rgba(220, 38, 38, 0.06);
+  border-radius: 8px;
+  border: 1px solid rgba(220, 38, 38, 0.2);
+}
+
+@media (max-width: 768px) {
+  .summary-grid { grid-template-columns: 1fr; }
+  .charts-grid  { grid-template-columns: 1fr; }
+  .filter-row   { flex-direction: column; align-items: stretch; }
+  .btn-primary  { width: 100%; }
+}
+@media (max-width: 480px) {
+  .chart-wrap { height: 200px; }
+}
+</style>
