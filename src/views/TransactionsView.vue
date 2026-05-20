@@ -1,6 +1,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import api from '../services/api'
+import TransactionFormModal from '../components/TransactionFormModal.vue'
 
 const transactions = ref([])
 const accounts     = ref([])
@@ -10,14 +11,11 @@ const errorMsg     = ref('')
 
 const filters = reactive({ type: '', categoryId: '', accountId: '' })
 
-const showModal  = ref(false)
-const modalMode  = ref('create')
-const modalError = ref('')
-const saving     = ref(false)
-const editingId  = ref(null)
-
-const emptyForm = () => ({ type: 'gasto', amount: '', categoryId: '', accountId: '', date: '' })
-const form      = reactive(emptyForm())
+const showModal = ref(false)
+const modalMode = ref('create')
+const modalInit = ref({})
+const saving    = ref(false)
+const editingId = ref(null)
 
 const TYPES = [
   { value: 'ingreso', label: 'Ingreso' },
@@ -49,38 +47,27 @@ const fetchData = async () => {
 }
 
 const openCreate = () => {
-  modalMode.value  = 'create'
-  modalError.value = ''
-  editingId.value  = null
-  Object.assign(form, emptyForm())
-  showModal.value  = true
+  modalMode.value = 'create'
+  modalInit.value = {}
+  showModal.value = true
 }
 
 const openEdit = (tx) => {
-  modalMode.value  = 'edit'
-  modalError.value = ''
-  editingId.value  = tx.id
-  Object.assign(form, { type: tx.type, amount: tx.amount, categoryId: tx.categoryId || '', accountId: tx.accountId || '', date: tx.date || '' })
-  showModal.value  = true
+  modalMode.value = 'edit'
+  modalInit.value = { type: tx.type, amount: tx.amount, categoryId: tx.categoryId || '', accountId: tx.accountId || '', date: tx.date || '' }
+  editingId.value = tx.id
+  showModal.value = true
 }
 
-const closeModal = () => { if (saving.value) return; showModal.value = false }
-
-const save = async () => {
-  modalError.value = ''
-  if (!form.amount || !form.accountId || !form.categoryId || !form.date) {
-    modalError.value = 'Todos los campos son requeridos.'
-    return
-  }
+const handleSubmit = async (payload) => {
   saving.value = true
   try {
-    const payload = { ...form, amount: Number(form.amount) }
     if (modalMode.value === 'create') await api.post('/api/transactions', payload)
     else                              await api.put(`/api/transactions/${editingId.value}`, payload)
     showModal.value = false
     await fetchData()
   } catch (err) {
-    modalError.value = err.response?.data?.message || 'Error al guardar.'
+    errorMsg.value = err.response?.data?.message || 'Error al guardar.'
   } finally {
     saving.value = false
   }
@@ -193,53 +180,16 @@ onMounted(fetchData)
       </div>
     </div>
 
-    <Teleport to="body">
-      <div v-if="showModal" class="modal-backdrop" @click.self="closeModal">
-        <div class="modal" role="dialog" aria-modal="true">
-          <div class="modal-header">
-            <h3>{{ modalMode === 'create' ? 'Nueva transacción' : 'Editar transacción' }}</h3>
-            <button class="close-btn" @click="closeModal" :disabled="saving">✕</button>
-          </div>
-          <div class="modal-body">
-            <div class="field">
-              <label>Tipo *</label>
-              <select v-model="form.type" :disabled="saving">
-                <option v-for="t in TYPES" :key="t.value" :value="t.value">{{ t.label }}</option>
-              </select>
-            </div>
-            <div class="field">
-              <label>Monto *</label>
-              <input v-model.number="form.amount" type="number" min="0.01" step="0.01" placeholder="0.00" :disabled="saving" />
-            </div>
-            <div class="field">
-              <label>Categoría *</label>
-              <select v-model="form.categoryId" :disabled="saving">
-                <option value="">Selecciona una categoría</option>
-                <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
-              </select>
-            </div>
-            <div class="field">
-              <label>Cuenta *</label>
-              <select v-model="form.accountId" :disabled="saving">
-                <option value="">Selecciona una cuenta</option>
-                <option v-for="a in accounts" :key="a.id" :value="a.id">{{ a.name }}</option>
-              </select>
-            </div>
-            <div class="field">
-              <label>Fecha *</label>
-              <input v-model="form.date" type="date" :disabled="saving" />
-            </div>
-            <p v-if="modalError" class="error-msg">{{ modalError }}</p>
-          </div>
-          <div class="modal-footer">
-            <button class="btn-ghost" @click="closeModal" :disabled="saving">Cancelar</button>
-            <button class="btn-primary" @click="save" :disabled="saving">
-              {{ saving ? 'Guardando...' : modalMode === 'create' ? 'Crear' : 'Guardar cambios' }}
-            </button>
-          </div>
-        </div>
-      </div>
-    </Teleport>
+    <TransactionFormModal
+      :show="showModal"
+      :mode="modalMode"
+      :initial="modalInit"
+      :accounts="accounts"
+      :categories="categories"
+      :saving="saving"
+      @close="showModal = false"
+      @submit="handleSubmit"
+    />
 
   </div>
 </template>
