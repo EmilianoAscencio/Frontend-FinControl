@@ -10,6 +10,13 @@ export const useAuthStore = defineStore('auth', {
     isAuthenticated: (state) => !!state.token,
   },
   actions: {
+
+initializeAuth() {
+      if (this.token) {
+        api.defaults.headers.common['Authorization'] = `Bearer ${this.token}`
+      }
+    },
+
     setSession(user, token) {
       this.user = user
       this.token = token
