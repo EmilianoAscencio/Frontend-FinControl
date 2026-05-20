@@ -114,7 +114,7 @@ const fetchReport = async () => {
       params: { startDate: filters.startDate, endDate: filters.endDate },
     })
     report.value  = data.data
-    loading.value = false   // must be false BEFORE nextTick so v-else-if renders the canvas
+    loading.value = false
     await nextTick()
     buildCharts()
   } catch (err) {
@@ -176,7 +176,7 @@ onUnmounted(destroyCharts)
       <!-- Summary cards -->
       <div class="summary-grid">
         <div class="card stat-card income">
-          <p class="stat-label">Total Ingresos</p>
+          <p class="stat-label">Total de Ingresos</p>
           <p class="stat-value">{{ fmt(report.totalIncome) }}</p>
         </div>
         <div class="card stat-card expenses">
