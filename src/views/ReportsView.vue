@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, computed, onUnmounted, nextTick } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { Chart, registerables } from 'chart.js'
 import api from '../services/api'
 
@@ -32,13 +32,18 @@ const destroyCharts = () => {
 
 const buildCharts = () => {
   if (!report.value) return
+  if (!barCanvas.value || !doughnutCanvas.value) return
   destroyCharts()
 
   const { totalIncome, totalExpenses } = report.value
   const incomeColor  = '#7c3aed'
   const expenseColor = '#ef4444'
 
-  barChart = new Chart(barCanvas.value, {
+  const barCtx      = barCanvas.value.getContext('2d')
+  const doughnutCtx = doughnutCanvas.value.getContext('2d')
+  if (!barCtx || !doughnutCtx) return
+
+  barChart = new Chart(barCtx, {
     type: 'bar',
     data: {
       labels: ['Ingresos', 'Gastos'],
@@ -63,7 +68,7 @@ const buildCharts = () => {
     },
   })
 
-  doughnutChart = new Chart(doughnutCanvas.value, {
+  doughnutChart = new Chart(doughnutCtx, {
     type: 'doughnut',
     data: {
       labels: ['Ingresos', 'Gastos'],
@@ -108,7 +113,8 @@ const fetchReport = async () => {
     const { data } = await api.get('/api/reports/income-vs-expenses', {
       params: { startDate: filters.startDate, endDate: filters.endDate },
     })
-    report.value = data.data
+    report.value  = data.data
+    loading.value = false   // must be false BEFORE nextTick so v-else-if renders the canvas
     await nextTick()
     buildCharts()
   } catch (err) {
@@ -125,8 +131,8 @@ const hasData = computed(
   () => report.value && (report.value.totalIncome > 0 || report.value.totalExpenses > 0)
 )
 
+onMounted(fetchReport)
 onUnmounted(destroyCharts)
-fetchReport()
 </script>
 
 <template>
