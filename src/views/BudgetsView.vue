@@ -22,7 +22,13 @@ const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
                 'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
 const catName = (id) => categories.value.find((c) => c.id === id)?.name ?? id
-const catIcon = (id) => categories.value.value?.find((c) => c.id === id)?.icon ?? '📦'
+const catIcon = (id) => categories.value.find((c) => c.id === id)?.icon ?? '📦'
+
+const formatPeriod = (month) => {
+  if (!month) return ''
+  const [yr, mo] = month.split('-')
+  return `${MONTHS[Number(mo) - 1]} ${yr}`
+}
 
 const fmt = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n ?? 0)
 
@@ -49,7 +55,7 @@ const enriched = computed(() =>
       ...b,
       name:       catName(b.categoryId),
       spent:      prog?.spent      ?? 0,
-      remaining:  prog?.remaining  ?? b.amount,
+      remaining:  prog?.remaining  ?? b.limitAmount,
       percentage: prog?.percentage ?? 0,
       exceeded:   prog?.exceeded   ?? false,
     }
@@ -85,7 +91,8 @@ const openEdit = (b) => {
   modalMode.value  = 'edit'
   editingId.value  = b.id
   modalError.value = ''
-  form.value = { categoryId: b.categoryId, amount: b.amount, month: b.month, year: b.year }
+  const [yr, mo] = (b.month || '-').split('-')
+  form.value = { categoryId: b.categoryId, amount: b.limitAmount, month: Number(mo), year: Number(yr) }
   showModal.value  = true
 }
 
@@ -103,7 +110,8 @@ const saveBudget = async () => {
   }
   saving.value = true
   try {
-    const payload = { ...form.value, amount: Number(form.value.amount), month: Number(form.value.month), year: Number(form.value.year) }
+    const monthStr = `${form.value.year}-${String(form.value.month).padStart(2, '0')}`
+    const payload = { categoryId: form.value.categoryId, limitAmount: Number(form.value.amount), month: monthStr }
     if (modalMode.value === 'create') {
       const created = await store.create(payload)
       store.fetchProgress(created.id)
@@ -170,7 +178,7 @@ const expenseCategories = computed(() => categories.value.filter((c) => c.type =
         <div class="bc-header">
           <div class="bc-info">
             <p class="bc-name">{{ b.name }}</p>
-            <p class="bc-period">{{ MONTHS[b.month - 1] }} {{ b.year }}</p>
+            <p class="bc-period">{{ formatPeriod(b.month) }}</p>
           </div>
           <div class="bc-actions">
             <button class="btn-ghost" @click="openEdit(b)">Editar</button>
@@ -188,7 +196,7 @@ const expenseCategories = computed(() => categories.value.filter((c) => c.type =
           </div>
           <div class="text-right">
             <p class="amt-label">Límite</p>
-            <p class="amt-value">{{ fmt(b.amount) }}</p>
+            <p class="amt-value">{{ fmt(b.limitAmount) }}</p>
           </div>
         </div>
 
