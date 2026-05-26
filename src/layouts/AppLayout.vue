@@ -308,7 +308,7 @@ const handleLogout = async () => {
 
 .dropdown-info {
   display: flex;
-  flex-direction: column;
+  flex-direction: column; 
   gap: 2px;
   min-width: 0;
 }
