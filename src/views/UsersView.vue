@@ -1,314 +1,238 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
-import AppLayout from '../layouts/AppLayout.vue'
-import { useUsersStore }  from '../stores/users'
-import { useAuthStore }   from '../stores/auth'
+import { ref, reactive, onMounted } from 'vue'
+import api from '../services/api'
+import { useAuthStore } from '../stores/auth'
 
-const usersStore = useUsersStore()
-const auth       = useAuthStore()
+const auth   = useAuthStore()
+const users  = ref([])
+const loading  = ref(false)
+const errorMsg = ref('')
 
-// Solo el rol admin puede ver esta vista
-const isAdmin = computed(() => auth.user?.role === 'admin')
+const showModal  = ref(false)
+const modalMode  = ref('create')
+const modalError = ref('')
+const saving     = ref(false)
+const editingId  = ref(null)
+const togglingId = ref(null)
 
-// ── Formulario nuevo usuario ───────────────────────────────────────────────────
-const showForm  = ref(false)
-const saving    = ref(false)
-const formError = ref('')
-const toggling  = ref(null) // id del usuario cuyo status está cambiando
+const ROLES = [
+  { value: 'admin', label: 'Admin'   },
+  { value: 'user',  label: 'Usuario' },
+]
 
-const form = ref({ name: '', email: '', password: '', role: 'capturista' })
+const emptyForm = () => ({ name: '', email: '', password: '', role: 'user' })
+const form      = reactive(emptyForm())
+
+// Solo admins pueden gestionar usuarios
+const isAdmin = auth.user?.role === 'admin'
+
+const fetchUsers = async () => {
+  loading.value  = true
+  errorMsg.value = ''
+  try {
+    const { data } = await api.get('/api/users')
+    users.value = data.data ?? []
+  } catch (err) {
+    errorMsg.value = err.response?.data?.message ?? 'Error al cargar usuarios.'
+  } finally {
+    loading.value = false
+  }
+}
 
 const openCreate = () => {
-  form.value  = { name: '', email: '', password: '', role: 'capturista' }
-  formError.value = ''
-  showForm.value  = true
+  if (!isAdmin) return
+  modalMode.value  = 'create'
+  modalError.value = ''
+  editingId.value  = null
+  Object.assign(form, emptyForm())
+  showModal.value  = true
 }
-const closeForm = () => { showForm.value = false }
 
-const saveForm = async () => {
-  if (!form.value.name || !form.value.email || !form.value.password) {
-    formError.value = 'Nombre, correo y contraseña son requeridos.'
-    return
-  }
+const openEdit = (u) => {
+  if (!isAdmin) return
+  modalMode.value  = 'edit'
+  modalError.value = ''
+  editingId.value  = u.id
+  form.name     = u.name ?? ''
+  form.email    = u.email
+  form.password = ''
+  form.role     = u.role ?? 'user'
+  showModal.value  = true
+}
+
+const closeModal = () => { if (!saving.value) showModal.value = false }
+
+const save = async () => {
+  modalError.value = ''
+  if (!form.email.trim())               { modalError.value = 'El email es requerido.'; return }
+  if (modalMode.value === 'create' && !form.password) { modalError.value = 'La contraseña es requerida.'; return }
+
   saving.value = true
-  formError.value = ''
   try {
-    await usersStore.create({ ...form.value })
-    closeForm()
-  } catch (e) {
-    formError.value = e.response?.data?.message || 'Error al crear usuario.'
+    const payload = { name: form.name.trim(), email: form.email.trim(), role: form.role }
+    if (form.password) payload.password = form.password
+
+    if (modalMode.value === 'create') await api.post('/api/users',               payload)
+    else                              await api.put(`/api/users/${editingId.value}`, payload)
+    showModal.value = false
+    await fetchUsers()
+  } catch (err) {
+    modalError.value = err.response?.data?.message ?? 'Error al guardar.'
   } finally {
     saving.value = false
   }
 }
 
-// ── Toggle status ─────────────────────────────────────────────────────────────
-const toggleStatus = async (user) => {
-  if (toggling.value) return          // evitar doble click
-  toggling.value = user.id
+const toggleStatus = async (u) => {
+  if (!isAdmin) return
+  togglingId.value = u.id
+  const newStatus  = u.status === 'active' ? 'inactive' : 'active'
   try {
-    await usersStore.toggleStatus(user.id)
-  } catch (e) {
-    alert(e.response?.data?.message || 'Error al cambiar estatus.')
+    await api.patch(`/api/users/${u.id}/status`, { status: newStatus })
+    u.status = newStatus
+  } catch (err) {
+    errorMsg.value = err.response?.data?.message ?? 'Error al cambiar el estado.'
   } finally {
-    toggling.value = null
+    togglingId.value = null
   }
 }
 
-onMounted(() => {
-  if (isAdmin.value) usersStore.fetchAll()
-})
+const roleLabel = (r) => ROLES.find((x) => x.value === r)?.label ?? r
+
+onMounted(fetchUsers)
 </script>
 
 <template>
-  <AppLayout>
-    <div class="page">
+  <div class="users-page">
 
-      <!-- Acceso denegado -->
-      <div v-if="!isAdmin" class="denied card">
-        <span class="denied-icon">🔒</span>
-        <h3>Acceso restringido</h3>
-        <p>Esta sección es visible solo para administradores.</p>
+    <div class="page-header">
+      <div>
+        <h2>Usuarios</h2>
+        <p class="page-sub">Administra los usuarios del sistema</p>
       </div>
+      <button v-if="isAdmin" class="btn-primary" @click="openCreate">+ Nuevo usuario</button>
+    </div>
 
-      <template v-else>
+    <div v-if="!isAdmin" class="notice-card card">
+      🔒 Solo los administradores pueden gestionar usuarios. Puedes consultar la lista.
+    </div>
 
-        <!-- Encabezado -->
-        <div class="page-header">
-          <div>
-            <h2>Usuarios</h2>
-            <p class="subtitle">Gestiona los usuarios y su acceso al sistema.</p>
-          </div>
-          <button class="btn-primary" @click="openCreate">+ Nuevo usuario</button>
-        </div>
+    <p v-if="errorMsg" class="error-msg">{{ errorMsg }}</p>
 
-        <!-- Stats rápidos -->
-        <div class="stats-row">
-          <div class="stat card">
-            <span class="stat-value">{{ usersStore.items.length }}</span>
-            <span class="stat-label">Total</span>
-          </div>
-          <div class="stat card">
-            <span class="stat-value green">{{ usersStore.active.length }}</span>
-            <span class="stat-label">Activos</span>
-          </div>
-          <div class="stat card">
-            <span class="stat-value red">{{ usersStore.inactive.length }}</span>
-            <span class="stat-label">Inactivos</span>
-          </div>
-        </div>
+    <div v-if="loading" class="state-box">
+      <span class="spinner"></span>
+      <p>Cargando usuarios…</p>
+    </div>
 
-        <!-- Estado de carga -->
-        <div v-if="usersStore.loading" class="state-msg">Cargando usuarios…</div>
-        <div v-else-if="usersStore.error" class="state-msg error">{{ usersStore.error }}</div>
+    <div v-else-if="!users.length" class="state-box card">
+      <p class="empty-icon">👥</p>
+      <p>No hay usuarios registrados.</p>
+      <button v-if="isAdmin" class="btn-primary" @click="openCreate">Crear primer usuario</button>
+    </div>
 
-        <!-- Tabla -->
-        <div v-else class="table-wrap card">
-          <table>
-            <thead>
-              <tr>
-                <th>Nombre</th>
-                <th>Correo</th>
-                <th>Rol</th>
-                <th>Estatus</th>
-                <th>Acción</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-if="usersStore.items.length === 0">
-                <td colspan="5" class="empty-row">No hay usuarios registrados.</td>
-              </tr>
-              <tr v-for="user in usersStore.items" :key="user.id">
-                <td>
-                  <div class="user-cell">
-                    <div class="avatar">{{ user.name?.charAt(0)?.toUpperCase() || '?' }}</div>
-                    <span>{{ user.name }}</span>
-                  </div>
-                </td>
-                <td>{{ user.email }}</td>
-                <td>
-                  <span class="badge badge-gray">{{ user.role }}</span>
-                </td>
-                <td>
-                  <span :class="['badge', user.status === 'active' ? 'badge-green' : 'badge-red']">
-                    {{ user.status === 'active' ? 'Activo' : 'Inactivo' }}
-                  </span>
-                </td>
-                <td>
-                  <!-- No puede desactivarse a sí mismo -->
+    <div v-else class="card table-card">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Email</th>
+              <th>Rol</th>
+              <th>Estado</th>
+              <th v-if="isAdmin">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="u in users" :key="u.id">
+              <td class="u-name">{{ u.name || '—' }}</td>
+              <td>{{ u.email }}</td>
+              <td>
+                <span class="badge" :class="u.role === 'admin' ? 'badge-gray' : ''">
+                  {{ roleLabel(u.role) }}
+                </span>
+              </td>
+              <td>
+                <span class="badge" :class="u.status === 'active' ? 'badge-green' : 'badge-red'">
+                  {{ u.status === 'active' ? 'Activo' : 'Inactivo' }}
+                </span>
+              </td>
+              <td v-if="isAdmin">
+                <div class="row-actions">
+                  <button class="btn-ghost" @click="openEdit(u)">Editar</button>
                   <button
-                    v-if="user.id !== auth.user?.id"
-                    :class="['toggle-btn', user.status === 'active' ? 'toggle-deactivate' : 'toggle-activate']"
-                    :disabled="toggling === user.id"
-                    @click="toggleStatus(user)"
+                    class="btn-ghost"
+                    :class="u.status === 'active' ? 'btn-ghost-danger' : ''"
+                    :disabled="togglingId === u.id || u.id === auth.user?.id"
+                    @click="toggleStatus(u)"
                   >
-                    {{ toggling === user.id ? '…' : (user.status === 'active' ? 'Desactivar' : 'Activar') }}
+                    {{ togglingId === u.id ? '…' : u.status === 'active' ? 'Desactivar' : 'Activar' }}
                   </button>
-                  <span v-else class="self-label">Tú</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
 
-        <!-- Modal crear usuario -->
-        <div v-if="showForm" class="modal-overlay" @click.self="closeForm">
-          <div class="modal">
-            <div class="modal-header">
-              <h3>Nuevo usuario</h3>
-              <button class="close-btn" @click="closeForm">✕</button>
+    <!-- Modal -->
+    <Teleport to="body">
+      <div v-if="showModal" class="modal-backdrop" @click.self="closeModal">
+        <div class="modal" role="dialog" aria-modal="true">
+          <div class="modal-header">
+            <h3>{{ modalMode === 'create' ? 'Nuevo usuario' : 'Editar usuario' }}</h3>
+            <button class="close-btn" @click="closeModal" :disabled="saving">✕</button>
+          </div>
+          <div class="modal-body">
+            <div class="field">
+              <label>Nombre</label>
+              <input v-model="form.name" type="text" placeholder="Nombre completo" :disabled="saving" />
             </div>
-
-            <div class="form-group">
-              <label>Nombre *</label>
-              <input v-model="form.name" placeholder="Nombre completo" />
+            <div class="field">
+              <label>Email *</label>
+              <input v-model="form.email" type="email" placeholder="correo@ejemplo.com" :disabled="saving" @keyup.enter="save" />
             </div>
-            <div class="form-group">
-              <label>Correo electrónico *</label>
-              <input v-model="form.email" type="email" placeholder="correo@empresa.com" />
+            <div class="field">
+              <label>Contraseña {{ modalMode === 'edit' ? '(dejar vacío para no cambiar)' : '*' }}</label>
+              <input v-model="form.password" type="password" placeholder="••••••••" :disabled="saving" />
             </div>
-            <div class="form-group">
-              <label>Contraseña *</label>
-              <input v-model="form.password" type="password" placeholder="Mínimo 6 caracteres" />
-            </div>
-            <div class="form-group">
-              <label>Rol</label>
-              <select v-model="form.role">
-                <option value="capturista">Capturista</option>
-                <option value="admin">Administrador</option>
+            <div class="field">
+              <label>Rol *</label>
+              <select v-model="form.role" :disabled="saving">
+                <option v-for="r in ROLES" :key="r.value" :value="r.value">{{ r.label }}</option>
               </select>
             </div>
-
-            <p v-if="formError" class="form-error">{{ formError }}</p>
-
-            <div class="modal-actions">
-              <button class="btn-ghost" @click="closeForm">Cancelar</button>
-              <button class="btn-primary" :disabled="saving" @click="saveForm">
-                {{ saving ? 'Creando…' : 'Crear usuario' }}
-              </button>
-            </div>
+            <p v-if="modalError" class="error-msg">{{ modalError }}</p>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-ghost" @click="closeModal" :disabled="saving">Cancelar</button>
+            <button class="btn-primary" @click="save" :disabled="saving">
+              {{ saving ? 'Guardando…' : modalMode === 'create' ? 'Crear usuario' : 'Guardar cambios' }}
+            </button>
           </div>
         </div>
+      </div>
+    </Teleport>
 
-      </template>
-    </div>
-  </AppLayout>
+  </div>
 </template>
 
 <style scoped>
-.page { display: flex; flex-direction: column; gap: 24px; }
+.users-page { display: flex; flex-direction: column; gap: 20px; }
+.u-name     { font-weight: 500; }
+.notice-card { padding: 16px 20px; font-size: 14px; color: var(--text); }
 
-.page-header {
-  display: flex; justify-content: space-between;
-  align-items: flex-start; gap: 16px;
+.field input, .field select {
+  padding: 8px 12px; border: 1.5px solid var(--border); border-radius: 8px;
+  background: var(--bg); color: var(--text-h); font-size: 14px; outline: none;
+  transition: border-color .2s; width: 100%;
 }
-.subtitle { font-size: 13px; color: var(--text); margin-top: 2px; }
+.field input:focus, .field select:focus { border-color: var(--accent); }
 
-/* Acceso denegado */
-.denied {
-  display: flex; flex-direction: column; align-items: center;
-  gap: 10px; padding: 60px; text-align: center;
-}
-.denied-icon { font-size: 40px; }
-.denied h3   { margin: 0; }
-.denied p    { color: var(--text); font-size: 14px; }
+.state-box { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 48px 24px; color: var(--text); font-size: 14px; }
+.empty-icon { font-size: 40px; margin: 0; }
+.spinner { width: 28px; height: 28px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 
-/* Stats */
-.stats-row { display: flex; gap: 12px; }
-.stat {
-  flex: 1; display: flex; flex-direction: column;
-  align-items: center; padding: 16px; gap: 4px;
-}
-.stat-value { font-size: 24px; font-weight: 700; color: var(--text-h); }
-.stat-value.green { color: #16a34a; }
-.stat-value.red   { color: #dc2626; }
-.stat-label { font-size: 12px; color: var(--text); }
-
-/* Table */
-.table-wrap { padding: 0; overflow: hidden; }
-table { width: 100%; border-collapse: collapse; }
-thead { background: var(--bg); }
-th {
-  padding: 12px 16px; text-align: left;
-  font-size: 12px; font-weight: 600;
-  color: var(--text); text-transform: uppercase;
-  letter-spacing: 0.05em;
-  border-bottom: 1px solid var(--border);
-}
-td {
-  padding: 12px 16px; font-size: 14px;
-  border-bottom: 1px solid var(--border); color: var(--text-h);
-}
-tr:last-child td { border-bottom: none; }
-tr:hover td { background: var(--accent-bg); }
-
-.user-cell { display: flex; align-items: center; gap: 10px; }
-.avatar {
-  width: 32px; height: 32px; border-radius: 50%;
-  background: var(--accent-bg); color: var(--accent);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 13px; font-weight: 700; flex-shrink: 0;
-}
-
-.empty-row { text-align: center; color: var(--text); padding: 32px; }
-
-/* Toggle buttons */
-.toggle-btn {
-  font-size: 12px; font-weight: 500; border: 1px solid;
-  border-radius: 6px; padding: 4px 12px; cursor: pointer;
-  transition: opacity 0.15s;
-}
-.toggle-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.toggle-deactivate { border-color: #dc2626; color: #dc2626; background: rgba(220,38,38,.08); }
-.toggle-deactivate:hover:not(:disabled) { background: rgba(220,38,38,.18); }
-.toggle-activate   { border-color: #16a34a; color: #16a34a; background: rgba(22,163,74,.08); }
-.toggle-activate:hover:not(:disabled)   { background: rgba(22,163,74,.18); }
-
-.self-label { font-size: 12px; color: var(--text); font-style: italic; }
-
-/* Buttons */
-.btn-primary {
-  background: var(--accent); color: #fff; border: none;
-  border-radius: 8px; padding: 9px 18px; font-size: 14px; font-weight: 500;
-  cursor: pointer; transition: opacity 0.15s;
-}
-.btn-primary:hover:not(:disabled) { opacity: 0.88; }
-.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-.btn-ghost {
-  background: none; border: 1px solid var(--border);
-  border-radius: 8px; padding: 9px 18px; font-size: 14px;
-  cursor: pointer; color: var(--text);
-}
-.btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
-
-/* Modal */
-.modal-overlay {
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,0.4); backdrop-filter: blur(2px);
-  display: flex; align-items: center; justify-content: center;
-  z-index: 100; padding: 16px;
-}
-.modal {
-  background: var(--bg-card); border: 1px solid var(--border);
-  border-radius: 14px; box-shadow: var(--shadow-md);
-  padding: 24px; width: 100%; max-width: 420px;
-  display: flex; flex-direction: column; gap: 16px;
-}
-.modal-header { display: flex; align-items: center; justify-content: space-between; }
-.modal-header h3 { margin: 0; font-size: 16px; }
-.close-btn { background: none; border: none; cursor: pointer; font-size: 16px; color: var(--text); }
-
-.form-group { display: flex; flex-direction: column; gap: 6px; }
-.form-group label { font-size: 13px; font-weight: 500; color: var(--text-h); }
-.form-group input, .form-group select {
-  border: 1px solid var(--border); border-radius: 8px;
-  padding: 9px 12px; font-size: 14px; background: var(--bg);
-  color: var(--text-h); outline: none; transition: border-color 0.15s;
-}
-.form-group input:focus, .form-group select:focus { border-color: var(--accent); }
-
-.modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
-.form-error { font-size: 13px; color: #dc2626; margin: 0; }
-.state-msg { text-align: center; color: var(--text); padding: 40px 0; }
-.state-msg.error { color: #dc2626; }
+@media (max-width: 640px) { th:nth-child(2), td:nth-child(2) { display: none; } }
 </style>
