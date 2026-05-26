@@ -16,6 +16,8 @@ const modalError = ref('')
 const saving     = ref(false)
 const editingId  = ref(null)
 
+const exportingCsv = ref(false)
+
 const emptyForm = () => ({ type: 'gasto', amount: '', categoryId: '', accountId: '', date: '' })
 const form      = reactive(emptyForm())
 
@@ -45,6 +47,31 @@ const fetchData = async () => {
     errorMsg.value = err.response?.data?.message || 'Error al cargar datos.'
   } finally {
     loading.value = false
+  }
+}
+
+const exportCsv = async () => {
+  exportingCsv.value = true
+  try {
+    const params = {}
+    if (filters.type)       params.type       = filters.type
+    if (filters.categoryId) params.categoryId = filters.categoryId
+    if (filters.accountId)  params.accountId  = filters.accountId
+
+    const response = await api.get('/api/transactions/export', { params, responseType: 'blob' })
+
+    const url  = URL.createObjectURL(new Blob([response.data], { type: 'text/csv' }))
+    const link = document.createElement('a')
+    link.href  = url
+    link.setAttribute('download', 'transacciones.csv')
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  } catch (err) {
+    errorMsg.value = 'Error al exportar CSV.'
+  } finally {
+    exportingCsv.value = false
   }
 }
 
@@ -111,7 +138,12 @@ onMounted(fetchData)
         <h2>Transacciones</h2>
         <p class="page-sub">Registra y administra tus movimientos</p>
       </div>
-      <button class="btn-primary" @click="openCreate">+ Nueva transacción</button>
+      <div class="header-actions">
+        <button class="btn-ghost" @click="exportCsv" :disabled="exportingCsv">
+          {{ exportingCsv ? 'Exportando...' : 'Exportar CSV' }}
+        </button>
+        <button class="btn-primary" @click="openCreate">+ Nueva transacción</button>
+      </div>
     </div>
 
     <div class="card filters-card">
@@ -249,6 +281,7 @@ onMounted(fetchData)
 .filters-card    { padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; }
 .filters-grid    { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
 .filters-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.header-actions  { display: flex; gap: 10px; align-items: center; }
 .tx-amount       { font-family: var(--mono); font-size: 13px; font-weight: 600; }
 .pos { color: #16a34a; }
 .neg { color: #dc2626; }

@@ -2,13 +2,12 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
 const routes = [
-  { path: '/login', component: () => import('../views/LoginView.vue') },
-    { path: '/register', component: () => import('../views/RegisterView.vue') },
+  { path: '/login',    component: () => import('../views/LoginView.vue') },
+  { path: '/register', component: () => import('../views/RegisterView.vue') },
+  { path: '/403', component: () => import('../views/ForbiddenView.vue') },
 
-  {
-    path: '/',
-    redirect: '/dashboard',
-  },
+  { path: '/', redirect: '/dashboard' },
+
   {
     path: '/dashboard',
     component: () => import('../views/DashboardView.vue'),
@@ -42,17 +41,21 @@ const routes = [
   {
     path: '/users',
     component: () => import('../views/UsersView.vue'),
-    meta: { requiresAuth: true, title: 'Usuarios' },
+    meta: { requiresAuth: true, requiresAdmin: true, title: 'Usuarios' },
   },
 ]
 
 const router = createRouter({ history: createWebHistory(), routes })
 
-// Guard de autenticación
 router.beforeEach((to) => {
   const auth = useAuthStore()
+
   if (to.meta.requiresAuth && !auth.isAuthenticated) {
     return '/login'
+  }
+
+  if (to.meta.requiresAdmin && !auth.isAdmin) {
+    return '/403'
   }
 })
 

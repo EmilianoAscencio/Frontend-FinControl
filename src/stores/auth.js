@@ -8,10 +8,11 @@ export const useAuthStore = defineStore('auth', {
   }),
   getters: {
     isAuthenticated: (state) => !!state.token,
+    isAdmin:         (state) => state.user?.role === 'admin',
   },
   actions: {
 
-initializeAuth() {
+    initializeAuth() {
       if (this.token) {
         api.defaults.headers.common['Authorization'] = `Bearer ${this.token}`
       }
@@ -24,6 +25,7 @@ initializeAuth() {
       localStorage.setItem('fc_token', token)
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`
     },
+
     async logout() {
       try { await api.post('/api/auth/logout') } catch {}
       this.user = null
