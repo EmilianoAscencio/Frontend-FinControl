@@ -6,7 +6,7 @@ import api                  from '../services/api'
 const store      = useBudgetsStore()
 const categories = ref([])
 
-// ── Carga inicial ─────────────────────────────────────
+// Carga inicial 
 onMounted(async () => {
   const catRes = await api.get('/api/categories').catch(() => ({ data: { data: [] } }))
   categories.value = catRes.data.data ?? []
@@ -17,7 +17,7 @@ onMounted(async () => {
   }
 })
 
-// ── Helpers ───────────────────────────────────────────
+// Helpers 
 const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
                 'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
@@ -41,9 +41,9 @@ const barColor = (pct) => {
 }
 
 const statusLabel = (pct, exceeded) => {
-  if (exceeded)  return 'Excedido'
-  if (pct >= 80) return 'En riesgo'
-  if (pct >= 60) return 'Atención'
+  if (exceeded || pct >= 100) return 'Excedido'
+  if (pct >= 80)              return 'En riesgo'
+  if (pct >= 60)              return 'Atención'
   return 'En control'
 }
 
@@ -53,16 +53,17 @@ const enriched = computed(() =>
     const prog = store.progress[b.id]
     return {
       ...b,
-      name:       catName(b.categoryId),
-      spent:      prog?.spent      ?? 0,
-      remaining:  prog?.remaining  ?? b.limitAmount,
-      percentage: prog?.percentage ?? 0,
-      exceeded:   prog?.exceeded   ?? false,
+      displayName: b.name || catName(b.categoryId),
+      catLabel:    catName(b.categoryId),
+      spent:       prog?.spent      ?? 0,
+      remaining:   prog?.remaining  ?? b.limitAmount,
+      percentage:  prog?.percentage ?? 0,
+      exceeded:    prog?.exceeded   ?? false,
     }
   })
 )
 
-// ── Formulario ────────────────────────────────────────
+// Formulario 
 const showModal  = ref(false)
 const modalMode  = ref('create')
 const editingId  = ref(null)
@@ -72,6 +73,7 @@ const togglingId = ref(null)
 
 const today = new Date()
 const emptyForm = () => ({
+  name:       '',
   categoryId: '',
   amount:     '',
   month:      today.getMonth() + 1,
@@ -92,7 +94,13 @@ const openEdit = (b) => {
   editingId.value  = b.id
   modalError.value = ''
   const [yr, mo] = (b.month || '-').split('-')
-  form.value = { categoryId: b.categoryId, amount: b.limitAmount, month: Number(mo), year: Number(yr) }
+  form.value = {
+    name:       b.name || '',
+    categoryId: b.categoryId,
+    amount:     b.limitAmount,
+    month:      Number(mo),
+    year:       Number(yr),
+  }
   showModal.value  = true
 }
 
@@ -111,7 +119,12 @@ const saveBudget = async () => {
   saving.value = true
   try {
     const monthStr = `${form.value.year}-${String(form.value.month).padStart(2, '0')}`
-    const payload = { categoryId: form.value.categoryId, limitAmount: Number(form.value.amount), month: monthStr }
+    const payload = {
+      categoryId:  form.value.categoryId,
+      limitAmount: Number(form.value.amount),
+      month:       monthStr,
+      name:        form.value.name?.trim() || undefined,
+    }
     if (modalMode.value === 'create') {
       const created = await store.create(payload)
       store.fetchProgress(created.id)
@@ -172,13 +185,13 @@ const expenseCategories = computed(() => categories.value.filter((c) => c.type =
         v-for="b in enriched"
         :key="b.id"
         class="card budget-card"
-        :class="{ exceeded: b.exceeded }"
+        :class="{ exceeded: b.exceeded || b.percentage >= 100 }"
       >
         <!-- Título -->
         <div class="bc-header">
           <div class="bc-info">
-            <p class="bc-name">{{ b.name }}</p>
-            <p class="bc-period">{{ formatPeriod(b.month) }}</p>
+            <p class="bc-name">{{ b.displayName }}</p>
+            <p class="bc-period">{{ b.catLabel }} · {{ formatPeriod(b.month) }}</p>
           </div>
           <div class="bc-actions">
             <button class="btn-ghost" @click="openEdit(b)">Editar</button>
@@ -232,6 +245,10 @@ const expenseCategories = computed(() => categories.value.filter((c) => c.type =
             <button class="close-btn" @click="closeModal" :disabled="saving">✕</button>
           </div>
           <div class="modal-body">
+            <div class="field">
+              <label>Nombre del presupuesto (opcional)</label>
+              <input v-model="form.name" type="text" placeholder="Ej. Comida rápida, Netflix…" :disabled="saving" maxlength="60" />
+            </div>
             <div class="field">
               <label>Categoría *</label>
               <select v-model="form.categoryId" :disabled="saving">

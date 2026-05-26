@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import api from '../services/api'
 
 const accounts = ref([])
@@ -94,8 +94,18 @@ const toggleStatus = async (acc) => {
   }
 }
 
+const currentBalance = (acc) => acc.balance ?? acc.initialBalance ?? 0
+
+const totalBalance = computed(() =>
+  accounts.value
+    .filter((a) => a.status === 'active')
+    .reduce((sum, a) => sum + currentBalance(a), 0)
+)
+const activeCount = computed(() => accounts.value.filter((a) => a.status === 'active').length)
+
 const fmt       = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n ?? 0)
 const typeLabel = (t) => TYPES.find((x) => x.value === t)?.label || t
+const typeIcon  = (t) => t === 'efectivo' ? '💵' : t === 'tarjeta' ? '💳' : '🏦'
 
 onMounted(fetchAccounts)
 </script>
@@ -112,6 +122,18 @@ onMounted(fetchAccounts)
     </div>
 
     <p v-if="errorMsg" class="error-msg">{{ errorMsg }}</p>
+
+    <!-- Summary bar -->
+    <div v-if="accounts.length" class="summary-bar">
+      <div class="card summary-card">
+        <span class="summary-label">Saldo consolidado (cuentas activas)</span>
+        <span class="summary-value">{{ fmt(totalBalance) }}</span>
+      </div>
+      <div class="card summary-card secondary">
+        <span class="summary-label">Cuentas activas</span>
+        <span class="summary-value secondary-val">{{ activeCount }} / {{ accounts.length }}</span>
+      </div>
+    </div>
 
     <div v-if="loading" class="state-box">
       <span class="spinner"></span>
@@ -132,6 +154,7 @@ onMounted(fetchAccounts)
               <th>Nombre</th>
               <th>Tipo</th>
               <th>Saldo inicial</th>
+              <th>Saldo actual</th>
               <th>Moneda</th>
               <th>Estado</th>
               <th>Acciones</th>
@@ -139,9 +162,13 @@ onMounted(fetchAccounts)
           </thead>
           <tbody>
             <tr v-for="acc in accounts" :key="acc.id">
-              <td class="acc-name">{{ acc.name }}</td>
+              <td class="acc-name">
+                <span class="acc-type-icon">{{ typeIcon(acc.type) }}</span>
+                {{ acc.name }}
+              </td>
               <td><span class="badge badge-gray">{{ typeLabel(acc.type) }}</span></td>
-              <td class="acc-balance">{{ fmt(acc.initialBalance) }}</td>
+              <td class="acc-balance mono">{{ fmt(acc.initialBalance) }}</td>
+              <td class="acc-balance mono current">{{ fmt(currentBalance(acc)) }}</td>
               <td>{{ acc.currency || 'MXN' }}</td>
               <td>
                 <span class="badge" :class="acc.status === 'active' ? 'badge-green' : 'badge-red'">
@@ -210,9 +237,52 @@ onMounted(fetchAccounts)
 
 <style scoped>
 .accounts-page { display: flex; flex-direction: column; gap: 20px; }
-.acc-name      { font-weight: 500; }
-.acc-balance   { font-family: var(--mono); font-size: 13px; }
 
-@media (max-width: 768px) { th:nth-child(4), td:nth-child(4) { display: none; } }
-@media (max-width: 560px) { th:nth-child(3), td:nth-child(3) { display: none; } }
+/* Summary bar */
+.summary-bar {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.summary-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px 22px;
+  min-width: 200px;
+}
+.summary-label { font-size: 12px; color: var(--text); }
+.summary-value { font-size: 22px; font-weight: 700; color: var(--accent); }
+.secondary-val { color: var(--text-h); }
+
+/* Table */
+.acc-name { font-weight: 500; display: flex; align-items: center; gap: 6px; }
+.acc-type-icon { font-size: 16px; }
+.mono { font-family: var(--mono); font-size: 13px; }
+.current { color: var(--accent); font-weight: 600; }
+
+/* States */
+.state-box {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 12px; padding: 48px 24px; color: var(--text); font-size: 14px;
+}
+.empty-icon { font-size: 40px; margin: 0; }
+.spinner {
+  width: 28px; height: 28px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 900px) {
+  th:nth-child(5), td:nth-child(5) { display: none; }
+}
+@media (max-width: 700px) {
+  th:nth-child(3), td:nth-child(3) { display: none; }
+}
+@media (max-width: 560px) {
+  th:nth-child(2), td:nth-child(2) { display: none; }
+}
 </style>

@@ -3,6 +3,20 @@ import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { Chart, registerables } from 'chart.js'
 import api from '../services/api'
 
+// Category breakdown
+const categories    = ref([])
+const breakdown     = ref([])
+const loadingBreak  = ref(false)
+
+const loadCategories = async () => {
+  try {
+    const { data } = await api.get('/api/categories')
+    categories.value = data.data || []
+  } catch {}
+}
+
+const catName = (id) => categories.value.find((c) => c.id === id)?.name || id
+
 Chart.register(...registerables)
 
 // Date helpers 
@@ -110,16 +124,39 @@ const fetchReport = async () => {
   destroyCharts()
 
   try {
-    const { data } = await api.get('/api/reports/income-vs-expenses', {
-      params: { startDate: filters.startDate, endDate: filters.endDate },
-    })
-    report.value  = data.data
+    const params = { startDate: filters.startDate, endDate: filters.endDate }
+
+    const startMonth = filters.startDate.slice(0, 7)
+
+    const [mainRes, breakRes] = await Promise.allSettled([
+      api.get('/api/reports/income-vs-expenses', { params }),
+      api.get('/api/reports/monthly-summary',    { params: { month: startMonth } }),
+    ])
+
+    if (mainRes.status === 'fulfilled') {
+      report.value = mainRes.value.data.data
+    } else {
+      throw mainRes.reason
+    }
+
+    if (breakRes.status === 'fulfilled') {
+      const cats = breakRes.value.data.data?.categorias || []
+      const totalAbs = cats.reduce((s, c) => s + c.ingresos + c.gastos, 0) || 1
+      const rows = []
+      cats.forEach((c) => {
+        if (c.ingresos > 0) rows.push({ categoryId: c.categoryId, type: 'ingreso', total: c.ingresos, percentage: Math.round((c.ingresos / totalAbs) * 100) })
+        if (c.gastos  > 0) rows.push({ categoryId: c.categoryId, type: 'gasto',   total: c.gastos,   percentage: Math.round((c.gastos   / totalAbs) * 100) })
+      })
+      breakdown.value = rows.sort((a, b) => b.total - a.total)
+    } else {
+      breakdown.value = []
+    }
+
     loading.value = false
     await nextTick()
     buildCharts()
   } catch (err) {
     errorMsg.value = err.response?.data?.message || 'Error al cargar el reporte.'
-  } finally {
     loading.value = false
   }
 }
@@ -131,7 +168,10 @@ const hasData = computed(
   () => report.value && (report.value.totalIncome > 0 || report.value.totalExpenses > 0)
 )
 
-onMounted(fetchReport)
+onMounted(() => {
+  loadCategories()
+  fetchReport()
+})
 onUnmounted(destroyCharts)
 </script>
 
@@ -208,6 +248,45 @@ onUnmounted(destroyCharts)
           <div class="chart-wrap">
             <canvas ref="doughnutCanvas"></canvas>
           </div>
+        </div>
+      </div>
+
+      <!-- Category breakdown table -->
+      <div v-if="breakdown.length" class="card table-card">
+        <div class="breakdown-header">
+          <h3>Desglose por categoría</h3>
+          <span class="breakdown-period">{{ filters.startDate }} → {{ filters.endDate }}</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Categoría</th>
+                <th>Tipo</th>
+                <th>Total</th>
+                <th>% del total</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in breakdown" :key="row.categoryId">
+                <td>{{ catName(row.categoryId) }}</td>
+                <td>
+                  <span class="badge" :class="row.type === 'ingreso' ? 'badge-green' : 'badge-red'">
+                    {{ row.type === 'ingreso' ? 'Ingreso' : 'Gasto' }}
+                  </span>
+                </td>
+                <td class="break-amount" :class="row.type === 'ingreso' ? 'pos' : 'neg'">
+                  {{ fmt(row.total) }}
+                </td>
+                <td>
+                  <div class="mini-bar-wrap">
+                    <div class="mini-bar" :style="{ width: Math.min(row.percentage ?? 0, 100) + '%', background: row.type === 'ingreso' ? '#7c3aed' : '#ef4444' }"></div>
+                    <span class="mini-pct">{{ row.percentage ?? 0 }}%</span>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -302,11 +381,36 @@ onUnmounted(destroyCharts)
   border: 1px solid rgba(220, 38, 38, 0.2);
 }
 
+/* Breakdown */
+.breakdown-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px 12px;
+}
+.breakdown-header h3 { margin: 0; }
+.breakdown-period { font-size: 12px; color: var(--text); }
+
+.break-amount { font-family: var(--mono); font-size: 13px; font-weight: 600; }
+.pos { color: #16a34a; }
+.neg { color: #dc2626; }
+
+.mini-bar-wrap {
+  display: flex; align-items: center; gap: 8px;
+  width: 140px;
+}
+.mini-bar {
+  height: 6px; border-radius: 99px;
+  flex: 1; max-width: 100px;
+  background: var(--accent);
+  min-width: 2px;
+}
+.mini-pct { font-size: 12px; color: var(--text); white-space: nowrap; }
+
 @media (max-width: 768px) {
   .summary-grid { grid-template-columns: 1fr; }
   .charts-grid  { grid-template-columns: 1fr; }
   .filter-row   { flex-direction: column; align-items: stretch; }
   .btn-primary  { width: 100%; }
+  th:nth-child(4), td:nth-child(4) { display: none; }
 }
 @media (max-width: 480px) {
   .chart-wrap { height: 200px; }

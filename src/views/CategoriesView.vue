@@ -1,8 +1,54 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useCategoriesStore } from '../stores/categories'
+import api from '../services/api'
 
 const store = useCategoriesStore()
+
+const txLoading    = ref(false)
+const monthlyTx    = ref([])
+
+const today        = new Date()
+const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
+
+const loadMonthlyTx = async () => {
+  txLoading.value = true
+  try {
+    const firstDay = `${currentMonth}-01`
+    const lastDay  = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+      .toISOString().slice(0, 10)
+    const { data } = await api.get('/api/transactions', {
+      params: { startDate: firstDay, endDate: lastDay },
+    })
+    monthlyTx.value = data.data || []
+  } catch {
+    monthlyTx.value = []
+  } finally {
+    txLoading.value = false
+  }
+}
+
+const spentByCategory = computed(() => {
+  const map = {}
+  monthlyTx.value
+    .filter((t) => t.type === 'gasto')
+    .forEach((t) => {
+      map[t.categoryId] = (map[t.categoryId] || 0) + (t.amount || 0)
+    })
+  return map
+})
+
+const incomeByCategory = computed(() => {
+  const map = {}
+  monthlyTx.value
+    .filter((t) => t.type === 'ingreso')
+    .forEach((t) => {
+      map[t.categoryId] = (map[t.categoryId] || 0) + (t.amount || 0)
+    })
+  return map
+})
+
+const fmt = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n ?? 0)
 
 const ICONS = ['🏠','🍔','🚗','✈️','💊','📚','🎮','🛍️','💡','🎵','🏋️','💼','💰','📈','🎁','🍕']
 const COLORS = ['#7c3aed','#2563eb','#16a34a','#dc2626','#d97706','#db2777','#0891b2','#65a30d']
@@ -41,7 +87,10 @@ const saveForm = async () => {
     saving.value = false
   }
 }
-onMounted(() => store.fetchAll())
+onMounted(async () => {
+  await store.fetchAll()
+  loadMonthlyTx()
+})
 </script>
 
 <template>
@@ -52,6 +101,10 @@ onMounted(() => store.fetchAll())
         <p class="subtitle">Organiza tus ingresos y gastos con categorías personalizadas.</p>
       </div>
       <button class="btn-primary" @click="openCreate">+ Nueva categoría</button>
+    </div>
+
+    <div class="month-badge">
+      <span>📅 Movimientos mostrados: {{ new Date().toLocaleDateString('es-MX', { month: 'long', year: 'numeric' }) }}</span>
     </div>
 
     <div v-if="store.loading" class="state-msg">Cargando categorías…</div>
@@ -67,6 +120,9 @@ onMounted(() => store.fetchAll())
             <div class="cat-info">
               <span class="cat-name">{{ cat.name }}</span>
               <span class="badge badge-green">ingreso</span>
+              <span v-if="incomeByCategory[cat.id]" class="cat-amount income-amount">
+                +{{ fmt(incomeByCategory[cat.id]) }}
+              </span>
             </div>
             <button v-if="cat.userId !== 'system'" class="btn-edit" @click="openEdit(cat)">✎</button>
           </div>
@@ -82,6 +138,9 @@ onMounted(() => store.fetchAll())
             <div class="cat-info">
               <span class="cat-name">{{ cat.name }}</span>
               <span class="badge badge-red">gasto</span>
+              <span v-if="spentByCategory[cat.id]" class="cat-amount expense-amount">
+                -{{ fmt(spentByCategory[cat.id]) }}
+              </span>
             </div>
             <button v-if="cat.userId !== 'system'" class="btn-edit" @click="openEdit(cat)">✎</button>
           </div>
@@ -176,4 +235,21 @@ onMounted(() => store.fetchAll())
 .state-msg { text-align: center; color: var(--text); padding: 40px 0; }
 .state-msg.error { color: #dc2626; }
 .empty { font-size: 13px; color: var(--text); padding: 8px 0; }
+
+.month-badge {
+  font-size: 12px;
+  color: var(--text);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
+  border-radius: 99px;
+  padding: 4px 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+}
+
+.cat-amount { font-size: 12px; font-weight: 600; font-family: var(--mono); margin-top: 1px; }
+.income-amount  { color: #16a34a; }
+.expense-amount { color: #dc2626; }
 </style>
