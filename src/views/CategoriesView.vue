@@ -48,6 +48,22 @@ const incomeByCategory = computed(() => {
   return map
 })
 
+const countIncomeByCategory = computed(() => {
+  const map = {}
+  monthlyTx.value.filter((t) => t.type === 'ingreso').forEach((t) => {
+    map[t.categoryId] = (map[t.categoryId] || 0) + 1
+  })
+  return map
+})
+
+const countExpenseByCategory = computed(() => {
+  const map = {}
+  monthlyTx.value.filter((t) => t.type === 'gasto').forEach((t) => {
+    map[t.categoryId] = (map[t.categoryId] || 0) + 1
+  })
+  return map
+})
+
 const fmt = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n ?? 0)
 
 const ICONS = ['🏠','🍔','🚗','✈️','💊','📚','🎮','🛍️','💡','🎵','🏋️','💼','💰','📈','🎁','🍕']
@@ -123,6 +139,9 @@ onMounted(async () => {
               <span v-if="incomeByCategory[cat.id]" class="cat-amount income-amount">
                 +{{ fmt(incomeByCategory[cat.id]) }}
               </span>
+              <span v-if="countIncomeByCategory[cat.id]" class="cat-count">
+                {{ countIncomeByCategory[cat.id] }} mov.
+              </span>
             </div>
             <button v-if="cat.userId !== 'system'" class="btn-edit" @click="openEdit(cat)">✎</button>
           </div>
@@ -140,6 +159,9 @@ onMounted(async () => {
               <span class="badge badge-red">gasto</span>
               <span v-if="spentByCategory[cat.id]" class="cat-amount expense-amount">
                 -{{ fmt(spentByCategory[cat.id]) }}
+              </span>
+              <span v-if="countExpenseByCategory[cat.id]" class="cat-count">
+                {{ countExpenseByCategory[cat.id] }} mov.
               </span>
             </div>
             <button v-if="cat.userId !== 'system'" class="btn-edit" @click="openEdit(cat)">✎</button>
@@ -252,4 +274,5 @@ onMounted(async () => {
 .cat-amount { font-size: 12px; font-weight: 600; font-family: var(--mono); margin-top: 1px; }
 .income-amount  { color: #16a34a; }
 .expense-amount { color: #dc2626; }
+.cat-count { font-size: 11px; color: var(--text); }
 </style>

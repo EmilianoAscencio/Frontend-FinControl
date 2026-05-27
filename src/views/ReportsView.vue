@@ -141,13 +141,15 @@ const fetchReport = async () => {
 
     if (breakRes.status === 'fulfilled') {
       const cats = breakRes.value.data.data?.categorias || []
-      const totalAbs = cats.reduce((s, c) => s + c.ingresos + c.gastos, 0) || 1
-      const rows = []
-      cats.forEach((c) => {
-        if (c.ingresos > 0) rows.push({ categoryId: c.categoryId, type: 'ingreso', total: c.ingresos, percentage: Math.round((c.ingresos / totalAbs) * 100) })
-        if (c.gastos  > 0) rows.push({ categoryId: c.categoryId, type: 'gasto',   total: c.gastos,   percentage: Math.round((c.gastos   / totalAbs) * 100) })
-      })
-      breakdown.value = rows.sort((a, b) => b.total - a.total)
+      breakdown.value = cats
+        .filter((c) => c.ingresos > 0 || c.gastos > 0)
+        .map((c) => ({
+          categoryId: c.categoryId,
+          ingresos:   c.ingresos || 0,
+          gastos:     c.gastos   || 0,
+          neto:       (c.ingresos || 0) - (c.gastos || 0),
+        }))
+        .sort((a, b) => (b.ingresos + b.gastos) - (a.ingresos + a.gastos))
     } else {
       breakdown.value = []
     }
@@ -262,28 +264,17 @@ onUnmounted(destroyCharts)
             <thead>
               <tr>
                 <th>Categoría</th>
-                <th>Tipo</th>
-                <th>Total</th>
-                <th>% del total</th>
+                <th class="text-right">Ingresos</th>
+                <th class="text-right">Gastos</th>
+                <th class="text-right">Neto</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="row in breakdown" :key="row.categoryId">
                 <td>{{ catName(row.categoryId) }}</td>
-                <td>
-                  <span class="badge" :class="row.type === 'ingreso' ? 'badge-green' : 'badge-red'">
-                    {{ row.type === 'ingreso' ? 'Ingreso' : 'Gasto' }}
-                  </span>
-                </td>
-                <td class="break-amount" :class="row.type === 'ingreso' ? 'pos' : 'neg'">
-                  {{ fmt(row.total) }}
-                </td>
-                <td>
-                  <div class="mini-bar-wrap">
-                    <div class="mini-bar" :style="{ width: Math.min(row.percentage ?? 0, 100) + '%', background: row.type === 'ingreso' ? '#7c3aed' : '#ef4444' }"></div>
-                    <span class="mini-pct">{{ row.percentage ?? 0 }}%</span>
-                  </div>
-                </td>
+                <td class="break-amount pos text-right">{{ row.ingresos > 0 ? fmt(row.ingresos) : '—' }}</td>
+                <td class="break-amount neg text-right">{{ row.gastos > 0 ? fmt(row.gastos) : '—' }}</td>
+                <td class="break-amount text-right" :class="row.neto >= 0 ? 'pos' : 'neg'">{{ fmt(row.neto) }}</td>
               </tr>
             </tbody>
           </table>
@@ -392,6 +383,7 @@ onUnmounted(destroyCharts)
 .break-amount { font-family: var(--mono); font-size: 13px; font-weight: 600; }
 .pos { color: #16a34a; }
 .neg { color: #dc2626; }
+.text-right { text-align: right; }
 
 .mini-bar-wrap {
   display: flex; align-items: center; gap: 8px;
