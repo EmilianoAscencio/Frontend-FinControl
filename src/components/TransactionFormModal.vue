@@ -63,7 +63,7 @@ watch(
   }
 )
 
-// Si el tipo cambia, limpiar categoría incompatible
+
 watch(
   () => form.type,
   (newType) => {
