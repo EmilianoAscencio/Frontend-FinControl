@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import api from '../services/api'
 
 const transactions = ref([])
@@ -169,6 +169,17 @@ const remove = async (tx) => {
   }
 }
 
+
+const filteredCategories = computed(() =>
+  categories.value.filter((c) => c.type === form.type)
+)
+
+
+watch(() => form.type, (newType) => {
+  const still = categories.value.find((c) => c.id === form.categoryId && c.type === newType)
+  if (!still) form.categoryId = ''
+})
+
 const fmt          = (n)  => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n ?? 0)
 const categoryName = (id) => categories.value.find((c) => c.id === id)?.name || '-'
 const accountName  = (id) => accounts.value.find((a)  => a.id === id)?.name  || '-'
@@ -325,11 +336,16 @@ onMounted(fetchData)
               <input v-model="form.description" type="text" placeholder="Ej. Supermercado, gasolina…" :disabled="saving" maxlength="120" />
             </div>
             <div class="field">
-              <label>Categoría *</label>
+              <label>Categoría * <span class="cat-hint">(solo {{ form.type === 'ingreso' ? 'ingresos' : 'gastos' }})</span></label>
               <select v-model="form.categoryId" :disabled="saving">
                 <option value="">Selecciona una categoría</option>
-                <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
+                <option v-for="c in filteredCategories" :key="c.id" :value="c.id">
+                  {{ c.icon ? c.icon + ' ' : '' }}{{ c.name }}
+                </option>
               </select>
+              <p v-if="filteredCategories.length === 0" class="cat-empty">
+                No hay categorías de tipo "{{ form.type }}" disponibles. Crea una en la sección Categorías.
+              </p>
             </div>
             <div class="field">
               <label>Cuenta *</label>
@@ -417,6 +433,9 @@ onMounted(fetchData)
   th:nth-child(4), td:nth-child(4),
   th:nth-child(5), td:nth-child(5) { display: none; }
 }
+.cat-hint  { font-size: 11px; font-weight: 400; color: var(--text); margin-left: 4px; }
+.cat-empty { font-size: 12px; color: var(--warning); margin: 4px 0 0; }
+
 @media (max-width: 640px) {
   th:nth-child(2), td:nth-child(2) { display: none; }
 }
