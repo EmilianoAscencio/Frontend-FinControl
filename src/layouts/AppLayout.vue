@@ -8,7 +8,7 @@ const router = useRouter()
 const route  = useRoute()
 const auth   = useAuthStore()
 
-/* ─── Responsive ─── */
+/*  Responsive */
 const isMobile      = ref(false)
 const checkMobile   = () => { isMobile.value = window.innerWidth < 768 }
 const sidebarExpanded = ref(true)   // desktop: expandido/colapsado
@@ -22,7 +22,7 @@ onMounted(() => {
 })
 onUnmounted(() => window.removeEventListener('resize', checkMobile))
 
-/* ─── Notificaciones ─── */
+/*  Notificaciones  */
 const alerts       = ref([])
 const notifLoading = ref(false)
 const notifOpen    = ref(false)
@@ -41,7 +41,7 @@ const alertCount = computed(() => alerts.value.length)
 const alertLabel = (b) => b.exceeded ? 'Excedido' : b.percentage >= 90 ? 'Crítico' : 'En riesgo'
 const alertColor = (b) => b.exceeded ? '#ef4444' : b.percentage >= 90 ? '#f97316' : '#eab308'
 
-/* ─── Tema ─── */
+/* Tema  */
 const isDark = ref(false)
 const initTheme = () => {
   isDark.value = localStorage.getItem('fc-theme') === 'dark'
@@ -53,7 +53,7 @@ const toggleTheme = () => {
   localStorage.setItem('fc-theme', isDark.value ? 'dark' : 'light')
 }
 
-/* ─── Usuario ─── */
+/* Usuario */
 const userName = computed(() => auth.user?.name || auth.user?.email || 'Usuario')
 const userRole = computed(() => auth.user?.role  || 'user')
 const initials = computed(() => {
@@ -61,7 +61,7 @@ const initials = computed(() => {
   return n.split(' ').slice(0, 2).map(w => w[0]?.toUpperCase()).join('')
 })
 
-/* ─── Navegación ─── */
+/* Navegación */
 const allNavItems = [
   { label: 'Dashboard',     to: '/dashboard',    icon: 'dashboard'    },
   { label: 'Cuentas',       to: '/accounts',     icon: 'accounts'     },
@@ -74,7 +74,7 @@ const allNavItems = [
 const navItems = computed(() => allNavItems.filter(i => !i.adminOnly || auth.isAdmin))
 const isActive = (to) => route.path.startsWith(to)
 
-/* ─── Acciones ─── */
+/* Acciones  */
 const toggleSidebar  = () => {
   if (isMobile.value) mobileOpen.value = !mobileOpen.value
   else sidebarExpanded.value = !sidebarExpanded.value
@@ -95,7 +95,7 @@ const navTo = (to) => {
   if (isMobile.value) mobileOpen.value = false
 }
 
-/* ─── Íconos SVG ─── */
+/* Íconos SVG */
 const ICONS = {
   dashboard: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z"/></svg>`,
   accounts:  `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z"/></svg>`,
@@ -123,7 +123,7 @@ const ICONS = {
       <div v-if="mobileOpen && isMobile" class="sidebar-overlay" @click="closeMobile"></div>
     </Transition>
 
-    <!-- ═══ SIDEBAR ═══ -->
+    <!--SIDEBAR -->
     <aside
       class="sidebar"
       :class="{
@@ -185,7 +185,7 @@ const ICONS = {
 
     </aside>
 
-    <!-- ═══ MAIN ═══ -->
+    <!--  MAIN -->
     <div class="main-wrapper">
 
       <!-- Topbar -->
@@ -306,9 +306,9 @@ const ICONS = {
 </template>
 
 <style scoped>
-/* ══════════════════════════════════════════
+/* 
    APP SHELL
-══════════════════════════════════════════ */
+*/
 .app-shell {
   display: flex;
   height: 100svh;
@@ -316,9 +316,9 @@ const ICONS = {
   background: var(--bg);
 }
 
-/* ══════════════════════════════════════════
+/* 
    SIDEBAR
-══════════════════════════════════════════ */
+ */
 .sidebar {
   width: 240px;
   height: 100svh;
@@ -355,7 +355,7 @@ const ICONS = {
   backdrop-filter: blur(2px);
 }
 
-/* ── Header ── */
+/* Header */
 .sidebar-header {
   display: flex;
   align-items: center;
@@ -420,7 +420,7 @@ const ICONS = {
   padding: 4px;
 }
 
-/* ── Nav ── */
+/* Nav */
 .sidebar-nav {
   display: flex;
   flex-direction: column;
@@ -486,7 +486,7 @@ const ICONS = {
 
 .nav-label { overflow: hidden; text-overflow: ellipsis; }
 
-/* ── Sidebar Footer ── */
+/*  Sidebar Footer */
 .sidebar-footer {
   border-top: 1px solid var(--border);
   padding: 12px 10px;
@@ -550,9 +550,9 @@ const ICONS = {
   margin: 0;
 }
 
-/* ══════════════════════════════════════════
+/* 
    MAIN WRAPPER
-══════════════════════════════════════════ */
+═*/
 .main-wrapper {
   flex: 1;
   display: flex;
@@ -562,9 +562,9 @@ const ICONS = {
   overflow: hidden;
 }
 
-/* ══════════════════════════════════════════
+/* 
    TOPBAR
-══════════════════════════════════════════ */
+ */
 .topbar {
   height: 60px;
   display: flex;
@@ -608,7 +608,7 @@ const ICONS = {
   margin-left: auto;
 }
 
-/* ── Icon buttons ── */
+/* Icon buttons */
 .top-icon-btn {
   background: none;
   border: 1px solid var(--border);
@@ -622,10 +622,10 @@ const ICONS = {
 .top-icon-btn:hover        { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
 .top-icon-btn--active      { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
 
-/* ── Popover wrapper ── */
+/* Popover wrapper */
 .top-popover-wrap { position: relative; }
 
-/* ── Notifications badge ── */
+/* Notifications badge */
 .notif-dot {
   position: absolute;
   top: -4px; right: -4px;
@@ -641,7 +641,7 @@ const ICONS = {
   line-height: 1;
 }
 
-/* ── Popover base ── */
+/* Popover base */
 .top-popover {
   position: absolute;
   top: calc(100% + 10px);
