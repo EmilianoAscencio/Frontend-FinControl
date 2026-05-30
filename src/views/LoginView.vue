@@ -159,13 +159,13 @@ const handleLogin = async () => {
 </template>
 
 <style scoped>
-/* ── Shell ── */
+/*  Shell  */
 .auth-shell {
   min-height: 100svh;
   display: flex;
 }
 
-/* ── Brand panel ── */
+/*  Brand panel  */
 .brand-panel {
   display: none;
   position: relative;
@@ -264,7 +264,7 @@ const handleLogin = async () => {
   width: 100%; height: 100%;
 }
 
-/* ── Form panel ── */
+/*  Form panel  */
 .form-panel {
   display: flex;
   align-items: center;
@@ -303,7 +303,7 @@ const handleLogin = async () => {
 }
 @media (min-width: 900px) { .mobile-logo { display: none; } }
 
-/* ── Fields ── */
+/*  Fields  */
 .fields { display: flex; flex-direction: column; gap: 14px; }
 
 .field       { display: flex; flex-direction: column; gap: 5px; }
@@ -347,7 +347,7 @@ const handleLogin = async () => {
   line-height: 1;
 }
 
-/* ── Submit ── */
+/*  Submit  */
 .submit-btn {
   display: flex;
   align-items: center;
@@ -379,7 +379,7 @@ const handleLogin = async () => {
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ── Error ── */
+/*  Error  */
 .error-msg {
   font-size: 13px;
   color: #dc2626;
@@ -390,7 +390,7 @@ const handleLogin = async () => {
   border: 1px solid rgba(220,38,38,0.18);
 }
 
-/* ── Switch ── */
+/*  Switch  */
 .switch-link {
   text-align: center;
   font-size: 13px;
