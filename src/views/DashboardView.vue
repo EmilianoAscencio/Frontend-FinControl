@@ -13,7 +13,7 @@ const summary  = ref(null)
 const barCanvas = ref(null)
 let barChart = null
 
-/* ─── Chart ─── */
+/*  Chart */
 const destroyChart = () => { if (barChart) { barChart.destroy(); barChart = null } }
 
 const buildChart = () => {
@@ -95,7 +95,7 @@ const buildChart = () => {
   })
 }
 
-/* ─── Data ─── */
+/*  Data  */
 const fetchSummary = async () => {
   errorMsg.value = ''
   loading.value  = true
@@ -112,12 +112,12 @@ const fetchSummary = async () => {
   }
 }
 
-/* ─── Computed ─── */
+/*  Computed  */
 const netBalance = computed(() =>
   (summary.value?.monthlyIncome || 0) - (summary.value?.monthlyExpenses || 0)
 )
 
-/* ─── Helpers ─── */
+/* Helpers  */
 const fmt = n =>
   new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n ?? 0)
 
@@ -175,7 +175,7 @@ onUnmounted(destroyChart)
 
     <template v-else-if="summary">
 
-      <!-- ══ KPI Cards ══ -->
+      <!-- KPI Cards  -->
       <div class="kpi-grid">
 
         <div class="kpi-card kpi-teal">
@@ -224,7 +224,7 @@ onUnmounted(destroyChart)
 
       </div>
 
-      <!-- ══ Chart ══ -->
+      <!--  Chart  -->
       <div v-if="summary.monthly?.length" class="card chart-card">
         <div class="chart-header">
           <div>
@@ -237,7 +237,7 @@ onUnmounted(destroyChart)
         </div>
       </div>
 
-      <!-- ══ Mid row ══ -->
+      <!--  Mid row  -->
       <div class="mid-grid">
 
         <!-- Cuentas -->
@@ -302,7 +302,7 @@ onUnmounted(destroyChart)
 
       </div>
 
-      <!-- ══ Últimas transacciones ══ -->
+      <!--  Últimas transacciones  -->
       <div class="card section-card">
         <div class="sc-header">
           <h3>Últimas transacciones</h3>
@@ -352,7 +352,7 @@ onUnmounted(destroyChart)
 <style scoped>
 .dash { display: flex; flex-direction: column; gap: 20px; }
 
-/* ── Header ── */
+/*  Header  */
 .dash-header {
   display: flex;
   align-items: flex-start;
@@ -361,7 +361,7 @@ onUnmounted(destroyChart)
   gap: 12px;
 }
 
-/* ── KPI Grid ── */
+/*  KPI Grid  */
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -413,7 +413,7 @@ onUnmounted(destroyChart)
 .kpi-accent-blue   { background: #2563eb; }
 .kpi-accent-orange { background: #ea580c; }
 
-/* ── Chart ── */
+/* Chart  */
 .chart-card { padding: 20px; }
 .chart-header {
   display: flex;
@@ -425,14 +425,14 @@ onUnmounted(destroyChart)
 .chart-sub { font-size: 12px; color: var(--text); margin: 0; }
 .chart-wrap { height: 240px; position: relative; }
 
-/* ── Mid row ── */
+/*  Mid row  */
 .mid-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 14px;
 }
 
-/* ── Section card ── */
+/*  Section card  */
 .section-card { padding: 20px; }
 
 .sc-header {
@@ -454,7 +454,7 @@ onUnmounted(destroyChart)
   text-align: center; padding: 24px 0;
 }
 
-/* ── Accounts ── */
+/*  Accounts  */
 .acc-list { display: flex; flex-direction: column; gap: 8px; }
 .acc-item {
   display: flex;
@@ -478,7 +478,7 @@ onUnmounted(destroyChart)
 .acc-type { font-size: 11px; color: var(--text); margin: 0; }
 .acc-balance { font-size: 14px; font-weight: 700; white-space: nowrap; margin: 0; }
 
-/* ── Budgets ── */
+/*  Budgets  */
 .budget-list { display: flex; flex-direction: column; gap: 16px; }
 .budget-item  { display: flex; flex-direction: column; gap: 6px; }
 
@@ -506,7 +506,7 @@ onUnmounted(destroyChart)
 .bi-over   { color: #dc2626; font-weight: 600; }
 .bi-rem    { color: var(--text); }
 
-/* ── Transactions table ── */
+/*  Transactions table  */
 .tx-desc-cell {
   display: flex; align-items: center; gap: 8px;
 }
@@ -522,7 +522,7 @@ onUnmounted(destroyChart)
 .tx-income  { color: #16a34a; }
 .tx-expense { color: #dc2626; }
 
-/* ── Spinner ── */
+/*  Spinner  */
 .spinner-sm {
   width: 13px; height: 13px;
   border: 2px solid var(--border);
@@ -532,7 +532,7 @@ onUnmounted(destroyChart)
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ── Responsive ── */
+/*  Responsive  */
 @media (max-width: 1100px) {
   .kpi-grid { grid-template-columns: repeat(2, 1fr); }
 }
