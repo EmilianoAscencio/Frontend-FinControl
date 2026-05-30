@@ -255,6 +255,7 @@ onUnmounted(() => { if (donutChart) { donutChart.destroy(); donutChart = null } 
         :key="b.id"
         class="card budget-card"
         :class="{ exceeded: b.exceeded || b.percentage >= 100 }"
+        :style="{ borderLeftColor: barColor(b.percentage), borderLeftWidth: '4px' }"
       >
         <!-- Título -->
         <div class="bc-header">
@@ -416,9 +417,17 @@ onUnmounted(() => { if (donutChart) { donutChart.destroy(); donutChart = null } 
 .budgets-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
 
 /* Tarjeta */
-.budget-card { padding: 20px; display: flex; flex-direction: column; gap: 14px; transition: box-shadow .15s; }
+.budget-card {
+  padding: 20px;
+  display: flex; flex-direction: column; gap: 14px;
+  transition: box-shadow .15s;
+  /* El borde izquierdo se setea dinámicamente vía :style (color = estado del presupuesto) */
+  border-left-width: 4px;
+  border-left-style: solid;
+}
 .budget-card:hover { box-shadow: var(--shadow-md); }
-.budget-card.exceeded { border-color: #fca5a5; }
+/* .exceeded ya no necesita override de color — el borde izquierdo dinámico lo maneja */
+.budget-card.exceeded { /* solo para referencia semántica */ }
 
 .bc-header  { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
 .bc-info    { flex: 1; min-width: 0; }
