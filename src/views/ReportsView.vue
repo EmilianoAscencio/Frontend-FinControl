@@ -50,13 +50,11 @@ const buildCharts = () => {
   destroyCharts()
 
   const { totalIncome, totalExpenses } = report.value
-  const incomeColor  = '#7c3aed'
-  const expenseColor = '#ef4444'
-
   const barCtx      = barCanvas.value.getContext('2d')
   const doughnutCtx = doughnutCanvas.value.getContext('2d')
   if (!barCtx || !doughnutCtx) return
 
+  // ── Bar chart: Ingresos vs Gastos ──
   barChart = new Chart(barCtx, {
     type: 'bar',
     data: {
@@ -64,45 +62,110 @@ const buildCharts = () => {
       datasets: [{
         label: 'Monto (MXN)',
         data: [totalIncome, totalExpenses],
-        backgroundColor: [incomeColor, expenseColor],
-        borderRadius: 8,
+        backgroundColor: ['rgba(13,148,136,0.82)', 'rgba(239,68,68,0.78)'],
+        borderRadius: 10,
         borderSkipped: false,
-      }],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        y: {
-          beginAtZero: true,
-          ticks: { callback: (v) => '$' + v.toLocaleString('es-MX') },
-        },
-      },
-    },
-  })
-
-  doughnutChart = new Chart(doughnutCtx, {
-    type: 'doughnut',
-    data: {
-      labels: ['Ingresos', 'Gastos'],
-      datasets: [{
-        data: [totalIncome, totalExpenses],
-        backgroundColor: [incomeColor, expenseColor],
-        borderWidth: 2,
+        borderWidth: 0,
+        maxBarThickness: 80,
       }],
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { position: 'bottom' },
+        legend: { display: false },
         tooltip: {
+          backgroundColor: 'rgba(15,23,42,0.88)',
+          titleFont: { size: 12, weight: '600' },
+          bodyFont: { size: 13, weight: '700' },
+          padding: 10,
+          cornerRadius: 8,
+          callbacks: { label: ctx => '  ' + fmt(ctx.parsed.y) },
+        },
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            callback: v => '$' + Number(v).toLocaleString('es-MX'),
+            font: { size: 11 },
+          },
+          grid: { color: 'rgba(0,0,0,0.04)' },
+          border: { display: false },
+        },
+        x: {
+          grid: { display: false },
+          ticks: { font: { size: 13, weight: '600' } },
+          border: { display: false },
+        },
+      },
+      animation: { duration: 500 },
+    },
+  })
+
+  // ── Doughnut: Gastos por categoría (fallback: ingresos vs gastos) ──
+  const catBreakdown = breakdown.value
+    .filter(c => c.gastos > 0)
+    .sort((a, b) => b.gastos - a.gastos)
+    .slice(0, 7)
+
+  const palette = [
+    '#0d9488', '#7c3aed', '#ef4444', '#f59e0b',
+    '#3b82f6', '#10b981', '#f97316',
+  ]
+
+  let doughnutLabels, doughnutData, doughnutColors
+  if (catBreakdown.length > 0) {
+    doughnutLabels = catBreakdown.map(c => catName(c.categoryId))
+    doughnutData   = catBreakdown.map(c => c.gastos)
+    doughnutColors = palette.slice(0, catBreakdown.length)
+  } else {
+    // Fallback when no category data
+    doughnutLabels = ['Ingresos', 'Gastos']
+    doughnutData   = [totalIncome, totalExpenses]
+    doughnutColors = ['#0d9488', '#ef4444']
+  }
+
+  doughnutChart = new Chart(doughnutCtx, {
+    type: 'doughnut',
+    data: {
+      labels: doughnutLabels,
+      datasets: [{
+        data:             doughnutData,
+        backgroundColor:  doughnutColors,
+        hoverBackgroundColor: doughnutColors.map(c => c + 'dd'),
+        borderWidth:      2,
+        borderColor:      'transparent',
+        hoverBorderColor: '#fff',
+        hoverOffset:      5,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '62%',
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: {
+            boxWidth: 10,
+            boxHeight: 10,
+            padding: 10,
+            font: { size: 11 },
+          },
+        },
+        tooltip: {
+          backgroundColor: 'rgba(15,23,42,0.88)',
+          titleFont: { size: 11 },
+          bodyFont: { size: 13, weight: '700' },
+          padding: 10,
+          cornerRadius: 8,
           callbacks: {
-            label: (ctx) => ` $${ctx.parsed.toLocaleString('es-MX')}`,
+            label: ctx => `  ${ctx.label}: ${fmt(ctx.parsed)}`,
           },
         },
       },
+      animation: { duration: 500 },
     },
   })
 }
@@ -170,8 +233,8 @@ const hasData = computed(
   () => report.value && (report.value.totalIncome > 0 || report.value.totalExpenses > 0)
 )
 
-onMounted(() => {
-  loadCategories()
+onMounted(async () => {
+  await loadCategories()   // categories must be ready before buildCharts calls catName()
   fetchReport()
 })
 onUnmounted(destroyCharts)
@@ -240,13 +303,15 @@ onUnmounted(destroyCharts)
       <!-- Charts -->
       <div v-else class="charts-grid">
         <div class="card chart-card">
-          <h3>Comparativa</h3>
+          <h3>Ingresos vs Gastos</h3>
+          <p class="chart-sub">Comparativa del período seleccionado</p>
           <div class="chart-wrap">
             <canvas ref="barCanvas"></canvas>
           </div>
         </div>
         <div class="card chart-card">
-          <h3>Distribución</h3>
+          <h3>Gastos por categoría</h3>
+          <p class="chart-sub">Distribución de egresos en el período</p>
           <div class="chart-wrap">
             <canvas ref="doughnutCanvas"></canvas>
           </div>
@@ -317,11 +382,12 @@ onUnmounted(destroyCharts)
 .stat-card   { text-align: center; }
 .stat-label  { font-size: 13px; color: var(--text); margin-bottom: 6px; }
 .stat-value  { font-size: 22px; font-weight: 700; color: var(--text-h); margin: 0; }
-.stat-card.income   .stat-value { color: #7c3aed; }
+.stat-card.income   .stat-value { color: #0d9488; }
 .stat-card.expenses .stat-value { color: #dc2626; }
 
 .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-.chart-card h3  { margin-bottom: 16px; }
+.chart-card h3   { margin: 0 0 2px; font-size: 14px; }
+.chart-sub       { font-size: 12px; color: var(--text); margin: 0 0 16px; }
 .chart-wrap { height: 260px; position: relative; }
 
 .state-box {
