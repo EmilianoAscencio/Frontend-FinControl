@@ -16,12 +16,41 @@ Interfaz de usuario del proyecto, construida con Vue 3 y Vite.
 
 ```txt
 src/
-├── components/   # Componentes reutilizables
-├── views/        # Vistas/páginas de la aplicación
-├── router/       # Configuración de rutas (Vue Router)
-├── stores/       # Stores de estado global (Pinia)
-├── services/     # Servicios y cliente HTTP (Axios)
-└── main.js       # Punto de entrada de la aplicación
+├── assets/
+│   ├── hero.png
+│   ├── vite.svg
+│   └── vue.svg
+├── components/
+│   ├── HelloWorld.vue
+│   └── TransactionFormModal.vue
+├── layouts/
+│   └── AppLayout.vue
+├── router/
+│   └── index.js
+├── services/
+│   └── api.js
+├── stores/
+│   ├── auth.js
+│   ├── budgets.js
+│   ├── categories.js
+│   ├── index.js
+│   └── users.js
+├── views/
+│   ├── AccountsView.vue
+│   ├── BudgetsView.vue
+│   ├── CategoriesView.vue
+│   ├── DashboardView.vue
+│   ├── ForbiddenView.vue
+│   ├── HomeView.vue
+│   ├── LoginView.vue
+│   ├── ProfileView.vue
+│   ├── RegisterView.vue
+│   ├── ReportsView.vue
+│   ├── TransactionsView.vue
+│   └── UsersView.vue
+├── App.vue
+├── main.js
+└── style.css
 ```
 
 ## Instalación y uso
@@ -36,6 +65,7 @@ src/
 ```bash
 npm install
 npm install vue-router@4 pinia axios
+npm install chart.js
 ```
 
 ## Variables de entorno
